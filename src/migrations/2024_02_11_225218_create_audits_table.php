@@ -30,8 +30,8 @@ return new class extends Migration
             $table->string("actor_table")->nullable();
             $table->string("actor_id")->nullable();
             $table->string("actor_name")->nullable();
-            $table->string("email")->nullable();
-            $table->string("phone")->nullable();
+            $table->string("actor_email")->nullable();
+            $table->string("actor_phone")->nullable();
 
             $table->string("object_table")->nullable();
             $table->string("object_id")->nullable();

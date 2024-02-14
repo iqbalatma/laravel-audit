@@ -2,13 +2,8 @@
 
 namespace Iqbalatma\LaravelAudit\Model;
 
-use App\Enums\Gender;
-use App\Models\User;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property string id
@@ -21,8 +16,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string actor_table
  * @property string actor_id
  * @property string actor_name
- * @property string email
- * @property string phone
+ * @property string actor_email
+ * @property string actor_phone
  * @property string object_table
  * @property string object_id
  * @property string trail
@@ -38,7 +33,7 @@ class Audit extends Model
 
     protected $fillable = [
         "message", "action", "ip_address", "endpoint", "method", "user_agent", "actor_table",
-        "actor_id", "actor_name", "email", "phone", "object_table", "object_id", "trail",
+        "actor_id", "actor_name", "actor_email", "actor_phone", "object_table", "object_id", "trail",
         "tag", "additional_data", "app_name"
     ];
 }

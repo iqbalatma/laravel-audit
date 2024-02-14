@@ -25,6 +25,6 @@ class LaravelAuditServiceProvider extends ServiceProvider
             __DIR__.'/../config/laravel_audit.php' => config_path('laravel_audit.php'),
         ]);
 
-        $this->loadMigrationsFrom(__DIR__.'/../migrations');
+        $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
     }
 }

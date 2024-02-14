@@ -1,0 +1,23 @@
+{
+    "name": "iqbalatma/laravel-audit",
+    "description": "Use to auditng data changes",
+    "autoload": {
+        "psr-4": {
+            "Iqbalatma\\LaravelAudit\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "iqbalatma",
+            "email": "iqbalatma@gmail.com"
+        }
+    ],
+    "require": {},
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Iqbalatma\\LaravelAudit\\Providers\\LaravelAuditServiceProvider"
+            ]
+        }
+    }
+}

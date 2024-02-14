@@ -21,10 +21,14 @@ class LaravelAuditServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
+
         $this->publishes([
             __DIR__.'/../config/laravel_audit.php' => config_path('laravel_audit.php'),
         ]);
 
-        $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
+        $this->publishes([
+            __DIR__.'/../migrations/' => database_path('migrations')
+        ], 'audit-migration');
     }
 }

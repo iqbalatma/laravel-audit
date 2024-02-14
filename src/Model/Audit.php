@@ -22,7 +22,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string object_id
  * @property string trail
  * @property string tag
- * @property string additional_data
+ * @property string additional
  * @property string app_name
  */
 class Audit extends Model
@@ -34,6 +34,6 @@ class Audit extends Model
     protected $fillable = [
         "message", "action", "ip_address", "endpoint", "method", "user_agent", "actor_table",
         "actor_id", "actor_name", "actor_email", "actor_phone", "object_table", "object_id", "trail",
-        "tag", "additional_data", "app_name"
+        "tag", "additional", "app_name"
     ];
 }

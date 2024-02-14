@@ -38,7 +38,7 @@ return new class extends Migration
 
             $table->text("trail")->nullable();
             $table->text("tag")->nullable();
-            $table->text("additional_data")->nullable();
+            $table->text("additional")->nullable();
 
             $table->string("app_name")->nullable();
             $table->timestamps();

@@ -1,6 +1,6 @@
 {
     "name": "iqbalatma/laravel-audit",
-    "description": "Use to auditng data changes",
+    "description": "Use to auditing data changes",
     "autoload": {
         "psr-4": {
             "Iqbalatma\\LaravelAudit\\": "src/"

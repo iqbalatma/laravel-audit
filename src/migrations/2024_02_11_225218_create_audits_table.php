@@ -26,6 +26,7 @@ return new class extends Migration
             $table->string("endpoint")->nullable();
             $table->string("method")->nullable();
             $table->string("user_agent")->nullable();
+            $table->text("user_request")->nullable();
 
             $table->string("actor_table")->nullable();
             $table->string("actor_id")->nullable();

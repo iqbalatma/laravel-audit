@@ -7,6 +7,6 @@ if (! function_exists('audit_model')) {
      */
     function audit_model(): string
     {
-        return  config('auditelasticsearch.audit_model');
+        return config('laravel_audit.audit_model');
     }
 }

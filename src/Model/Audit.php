@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string endpoint
  * @property string method
  * @property string user_agent
+ * @property string user_request
  * @property string actor_table
  * @property string actor_id
  * @property string actor_name
@@ -34,6 +35,6 @@ class Audit extends Model
     protected $fillable = [
         "message", "action", "ip_address", "endpoint", "method", "user_agent", "actor_table",
         "actor_id", "actor_name", "actor_email", "actor_phone", "object_table", "object_id", "trail",
-        "tag", "additional", "app_name"
+        "tag", "additional", "app_name", "user_request"
     ];
 }

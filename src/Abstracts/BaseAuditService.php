@@ -29,7 +29,7 @@ abstract class BaseAuditService
 
     public function __construct()
     {
-        $this->additional = method_exists(Auth::user(), "getRoleNames") && config("laravel_audit.is_role_from_spatie") ?
+        $this->additional = Auth::user() && method_exists(Auth::user(), "getRoleNames") && config("laravel_audit.is_role_from_spatie") ?
             ["actor_role" => Auth::user()?->getRoleNames()->toArray()] :
             [];
 

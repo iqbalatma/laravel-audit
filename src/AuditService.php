@@ -72,10 +72,10 @@ class AuditService extends BaseAuditService
 
     /**
      * @param string $key
-     * @param array|string|Collection|null $before
+     * @param array|string|Collection|Model|null $before
      * @return $this
      */
-    public function addBefore(string $key, array|string|null|Collection $before): self
+    public function addBefore(string $key, array|string|null|Collection|Model $before): self
     {
         $this->before->put($key, $before);
 
@@ -85,10 +85,10 @@ class AuditService extends BaseAuditService
 
     /**
      * @param string $key
-     * @param array|string|Collection|null $after
+     * @param array|string|Collection|Model|null $after
      * @return $this
      */
-    public function addAfter(string $key, array|string|null|Collection $after): self
+    public function addAfter(string $key, array|string|null|Collection|Model $after): self
     {
         $this->after->put($key, $after);
         return $this;
@@ -105,14 +105,15 @@ class AuditService extends BaseAuditService
     }
 
     /**
-     * @param array|Collection $before
-     * @param array|Collection $after
+     * @param array|string|Collection|Model|null $before
+     * @param array|string|Collection|Model|null $after
      * @return void
      */
-    public function log(array|Collection $before = [], array|Collection $after = []): void
+    public function log(array|string|null|Collection|Model $before = [], array|string|null|Collection|Model $after = []): void
     {
         $this->before = $this->before->merge($before);
         $this->after = $this->after->merge($after);
+
 
         if ($this->after->count() > 0 || $this->before->count() > 0) {
             AuditJob::dispatch($this);

@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Iqbalatma\LaravelAudit\Abstracts\BaseAuditService;
 use Iqbalatma\LaravelAudit\Jobs\AuditJob;
-use Iqbalatma\LaravelUtils\Exceptions\DumpAPIException;
 
 class AuditService extends BaseAuditService
 {

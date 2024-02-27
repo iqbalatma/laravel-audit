@@ -21,7 +21,7 @@ class AuditService extends BaseAuditService
      * @param string $action
      * @return $this
      */
-    public function setAction(string $action):self
+    public function setAction(string $action): self
     {
         $this->action = $action;
         return $this;
@@ -41,7 +41,7 @@ class AuditService extends BaseAuditService
      * @param string $message
      * @return $this
      */
-    public function setMessage(string $message):self
+    public function setMessage(string $message): self
     {
         $this->message = $message;
         return $this;
@@ -62,7 +62,7 @@ class AuditService extends BaseAuditService
     /**
      * @return $this
      */
-    public function setObject(Model $model):self
+    public function setObject(Model $model): self
     {
         $this->objectTable = $model->getTable();
         $this->objectId = $model->getKey();
@@ -98,9 +98,40 @@ class AuditService extends BaseAuditService
      * @param string $appName
      * @return $this
      */
-    public function setAppName(string $appName):self
+    public function setAppName(string $appName): self
     {
         $this->appName = $appName;
+        return $this;
+    }
+
+    /**
+     * @param string $key
+     * @param Collection|array $beforeChanges
+     * @param Model|Collection $object
+     * @param string $keyComparation
+     * @return $this
+     */
+    public function addBeforeAfter(string $key, Collection|array $beforeChanges, Model|Collection $object, string $keyComparation = "id"): self
+    {
+        if ($beforeChanges instanceof Collection && $object instanceof Collection) {
+            $beforeUpdateIds = $beforeChanges->pluck($keyComparation);
+            $afterUpdateIds = $object->pluck($keyComparation);
+
+
+            $diffBefore = $beforeUpdateIds->diff($afterUpdateIds);
+            $diffAfter = $afterUpdateIds->diff($beforeUpdateIds);
+
+            if ($diffAfter->count() > 0 || $diffBefore->count() > 0) {
+                $this->before->put($key, $beforeChanges->toArray());
+                $this->after->put($key, $object->toArray());
+            }
+        } elseif (is_array($beforeChanges) && $object instanceof Model) {
+            if (count($object->getChanges()) > 0) {
+                $this->before->put($key, array_intersect_key($beforeChanges, $object->getChanges()));
+                $this->after->put($key, $object->getChanges());
+            }
+        }
+
         return $this;
     }
 

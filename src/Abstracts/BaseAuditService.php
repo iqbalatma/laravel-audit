@@ -2,6 +2,7 @@
 
 namespace Iqbalatma\LaravelAudit\Abstracts;
 
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 
@@ -13,7 +14,7 @@ abstract class BaseAuditService
     public string|null $endpoint;
     public string|null $method;
     public string|null $userAgent;
-    public array|null $userRequest;
+    public Collection|array|null $userRequest;
     public string|null $actorTable;
     public string|null $actorId;
     public string|null $actorName;
@@ -62,32 +63,52 @@ abstract class BaseAuditService
         $this->method = request()?->getMethod();
         $this->ipAddress = request()?->getClientIp();
         $this->userAgent = request()?->header("user-agent");
-        $this->userRequest = request()?->all();
+        $this->userRequest = $this->filterRequest(collect(request()->all()))->toArray();
         $this->endpoint = parse_url(request()?->url())["path"] ?? null;
         return $this;
     }
 
+    private function filterRequest($collection)
+    {
+        return $collection->map(function($item) {
+            // Jika item adalah array, panggil rekursif ke sub-array
+            if (is_array($item)) {
+                return $this->filterRequest(collect($item));  // Rekursif
+            }
+
+            // Jika item bukan objek UploadedFile, kembalikan item
+            if (!($item instanceof \Illuminate\Http\UploadedFile)) {
+                return $item;
+            }
+
+            // Jika item adalah file, kembalikan null
+            return null;
+        })->filter(function($item) {
+            // Menghapus item yang bernilai null (yang merupakan file)
+            return $item !== null;
+        });
+    }
 
 
     /**
      * @return $this
      */
-    protected function setActor():self
+    protected function setActor(): self
     {
         $user = Auth::user();
 
         $this->actorTable = $user?->getTable();
         $this->actorId = $user?->getKey();
 
-        if (config("laravel_audit.actor_key.email")){
+        if (config("laravel_audit.actor_key.email")) {
             $this->actorEmail = $user?->{config("laravel_audit.actor_key.email")};
         }
 
-        if (config("laravel_audit.actor_key.phone")){
+        if (config("laravel_audit.actor_key.phone")) {
             $this->actorPhone = $user?->{config("laravel_audit.actor_key.phone")};
         }
 
-        if (config("laravel_audit.actor_key.name")){
+        if (config("laravel_audit.actor_key.name")) {
             $this->actorName = $user?->{config("laravel_audit.actor_key.name")};
         }
 

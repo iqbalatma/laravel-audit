@@ -2,6 +2,7 @@
 
 namespace Iqbalatma\LaravelAudit;
 
+use App\Enums\ImportName;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Iqbalatma\LaravelAudit\Abstracts\BaseAuditService;
@@ -114,16 +115,44 @@ class AuditService extends BaseAuditService
     public function addBeforeAfter(string $key, Collection|array $beforeChanges, Model|Collection $object, string $keyComparation = "id"): self
     {
         if ($beforeChanges instanceof Collection && $object instanceof Collection) {
+            $this->before[$key] = collect();
+            $this->after[$key] = collect();
+
             $beforeUpdateIds = $beforeChanges->pluck($keyComparation);
             $afterUpdateIds = $object->pluck($keyComparation);
+
+            $intersectedIds = $beforeUpdateIds->intersect($afterUpdateIds);
+            $intersectedBeforeCollection = $beforeChanges->whereIn("id", $intersectedIds)->values();
+            $intersectedAfterCollection = $object->whereIn("id", $intersectedIds)->values();
+            foreach ($intersectedBeforeCollection as $intersectedBefore) {
+                $intersectedAfter = $intersectedAfterCollection->where("id", $intersectedBefore["id"])->first();
+
+                if (!$intersectedAfter) {
+                    continue;
+                }
+
+                if ($intersectedAfter instanceof Model) {
+                    $intersectedAfter = $intersectedAfter->toArray();
+                }
+
+                if ($intersectedBefore instanceof Model) {
+                    $intersectedBefore = $intersectedBefore->toArray();
+                }
+
+                $after = array_diff_assoc($intersectedAfter, $intersectedBefore);
+                $before = array_intersect_key($intersectedBefore, array_flip(array_keys($after)));
+
+                $this->before[$key]->push($before);
+                $this->after[$key]->push($after);
+            }
 
 
             $diffBefore = $beforeUpdateIds->diff($afterUpdateIds);
             $diffAfter = $afterUpdateIds->diff($beforeUpdateIds);
 
             if ($diffAfter->count() > 0 || $diffBefore->count() > 0) {
-                $this->before->put($key, $beforeChanges->toArray());
-                $this->after->put($key, $object->toArray());
+                $this->before[$key]->push(...$beforeChanges->whereIn("id", $diffBefore)->toArray());
+                $this->after[$key]->push(...$object->whereIn("id", $diffAfter)->toArray());
             }
         } elseif (is_array($beforeChanges) && $object instanceof Model) {
             if (count($object->getChanges()) > 0) {

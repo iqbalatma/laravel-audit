@@ -167,7 +167,7 @@ class AuditService extends BaseAuditService
 
         if (count($targetKeys) > 0) {
             $this->before->put($key, array_intersect_key($beforeChanges, array_flip($targetKeys)));
-            $this->after->put($key,array_intersect_key($afterChanges, array_flip($targetKeys)));
+            $this->after->put($key, array_intersect_key($afterChanges, array_flip($targetKeys)));
         }
 
 
@@ -194,6 +194,54 @@ class AuditService extends BaseAuditService
             $this->before->put($key, $beforeChanges->pluck("id")->toArray());
             $this->after->put($key, $afterChanges->pluck("id")->toArray());
         }
+        return $this;
+    }
+
+    public function addBeforeAfterCollectionChanges(string $key, Collection $beforeChanges, Collection $afterChanges, string $keyComparassion = "id"): self
+    {
+        if ($beforeChanges->count() > 0) {
+            $this->before[$key] = collect();
+            $this->after[$key] = collect();
+
+            $beforeUpdateIds = $beforeChanges->pluck($keyComparassion);
+            $afterUpdateIds = $afterChanges->pluck($keyComparassion);
+
+            $intersectedIds = $beforeUpdateIds->intersect($afterUpdateIds);
+
+            $intersectedBeforeCollection = $beforeChanges->whereIn($keyComparassion, $intersectedIds)->values();
+            $intersectedAfterCollection = $afterChanges->whereIn($keyComparassion, $intersectedIds)->values();
+
+            foreach ($intersectedBeforeCollection as $intersectedBefore) {
+                $intersectedAfter = $intersectedAfterCollection->where($keyComparassion, $intersectedBefore[$keyComparassion])->first();
+
+                if (!$intersectedAfter) {
+                    continue;
+                }
+
+                if ($intersectedAfter instanceof Model) {
+                    $intersectedAfter = $intersectedAfter->toArray();
+                }
+
+                if ($intersectedBefore instanceof Model) {
+                    $intersectedBefore = $intersectedBefore->toArray();
+                }
+
+                $after = array_diff_assoc($intersectedAfter, $intersectedBefore);
+
+                $before = array_intersect_key($intersectedBefore, array_flip(array_keys($after)));
+
+                $this->before[$key]->push(array_merge([$keyComparassion => $intersectedBefore[$keyComparassion]], $before));
+                $this->after[$key]->push(array_merge([$keyComparassion => $intersectedAfter[$keyComparassion]], $after));
+            }
+
+            $existingCollection = $this->before[$key]->pluck($keyComparassion);
+            $newCollectionItem = $afterChanges->whereNotIn($keyComparassion, $existingCollection)->values();
+
+            if ($newCollectionItem->count() > 0) {
+                $this->after[$key] = $this->after[$key]->merge($newCollectionItem);
+            }
+        }
+
         return $this;
     }
 

@@ -113,13 +113,13 @@ class AuditService extends BaseAuditService
      * @return $this
      */
     /**
-     * @deprecated use addBeforeAfterSingleEntity for single entity and
-     * addBeforeAfterAttachDetachCollection for sync collection one to many or many to many
      * @param string $key
      * @param Collection|array $beforeChanges
      * @param Model|Collection $object
      * @param string $keyComparation
      * @return $this
+     * @deprecated use addBeforeAfterSingleEntity for single entity and
+     * addBeforeAfterAttachDetachCollection for sync collection one to many or many to many
      */
     public function addBeforeAfter(string $key, Collection|array $beforeChanges, Model|Collection $object, string $keyComparation = "id"): self
     {
@@ -152,15 +152,24 @@ class AuditService extends BaseAuditService
      * @param string $keyComparation
      * @return $this
      */
-    public function addBeforeAfterSingleEntity(string $key, Model|array $beforeChanges, Model $afterChanges): self
+    public function addBeforeAfterSingleEntity(string $key, Model|array $beforeChanges, Model|array $afterChanges): self
     {
         if ($beforeChanges instanceof Model) {
             $beforeChanges = $beforeChanges->toArray();
         }
-        if (count($afterChanges->getChanges()) > 0) {
-            $this->before->put($key, array_intersect_key($beforeChanges, $afterChanges->getChanges()));
-            $this->after->put($key, $afterChanges->getChanges());
+
+        if ($afterChanges instanceof Model) {
+            $afterChanges = $afterChanges->toArray();
         }
+
+        $differences = array_diff_assoc($beforeChanges, $afterChanges);
+        $targetKeys = array_keys($differences);
+
+        if (count($targetKeys) > 0) {
+            $this->before->put($key, array_intersect_key($beforeChanges, array_flip($targetKeys)));
+            $this->after->put($key,array_intersect_key($afterChanges, array_flip($targetKeys)));
+        }
+
 
         return $this;
     }

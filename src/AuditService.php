@@ -112,47 +112,28 @@ class AuditService extends BaseAuditService
      * @param string $keyComparation
      * @return $this
      */
+    /**
+     * @deprecated use addBeforeAfterSingleEntity for single entity and
+     * addBeforeAfterAttachDetachCollection for sync collection one to many or many to many
+     * @param string $key
+     * @param Collection|array $beforeChanges
+     * @param Model|Collection $object
+     * @param string $keyComparation
+     * @return $this
+     */
     public function addBeforeAfter(string $key, Collection|array $beforeChanges, Model|Collection $object, string $keyComparation = "id"): self
     {
         if ($beforeChanges instanceof Collection && $object instanceof Collection) {
-            $this->before[$key] = collect();
-            $this->after[$key] = collect();
-
             $beforeUpdateIds = $beforeChanges->pluck($keyComparation);
             $afterUpdateIds = $object->pluck($keyComparation);
-
-            $intersectedIds = $beforeUpdateIds->intersect($afterUpdateIds);
-            $intersectedBeforeCollection = $beforeChanges->whereIn("id", $intersectedIds)->values();
-            $intersectedAfterCollection = $object->whereIn("id", $intersectedIds)->values();
-            foreach ($intersectedBeforeCollection as $intersectedBefore) {
-                $intersectedAfter = $intersectedAfterCollection->where("id", $intersectedBefore["id"])->first();
-
-                if (!$intersectedAfter) {
-                    continue;
-                }
-
-                if ($intersectedAfter instanceof Model) {
-                    $intersectedAfter = $intersectedAfter->toArray();
-                }
-
-                if ($intersectedBefore instanceof Model) {
-                    $intersectedBefore = $intersectedBefore->toArray();
-                }
-
-                $after = array_diff_assoc($intersectedAfter, $intersectedBefore);
-                $before = array_intersect_key($intersectedBefore, array_flip(array_keys($after)));
-
-                $this->before[$key]->push($before);
-                $this->after[$key]->push($after);
-            }
 
 
             $diffBefore = $beforeUpdateIds->diff($afterUpdateIds);
             $diffAfter = $afterUpdateIds->diff($beforeUpdateIds);
 
             if ($diffAfter->count() > 0 || $diffBefore->count() > 0) {
-                $this->before[$key]->push(...$beforeChanges->whereIn("id", $diffBefore)->toArray());
-                $this->after[$key]->push(...$object->whereIn("id", $diffAfter)->toArray());
+                $this->before->put($key, $beforeChanges->toArray());
+                $this->after->put($key, $object->toArray());
             }
         } elseif (is_array($beforeChanges) && $object instanceof Model) {
             if (count($object->getChanges()) > 0) {
@@ -165,6 +146,49 @@ class AuditService extends BaseAuditService
     }
 
     /**
+     * @param string $key
+     * @param Collection|array $beforeChanges
+     * @param Model|Collection $object
+     * @param string $keyComparation
+     * @return $this
+     */
+    public function addBeforeAfterSingleEntity(string $key, Model|array $beforeChanges, Model $afterChanges): self
+    {
+        if ($beforeChanges instanceof Model) {
+            $beforeChanges = $beforeChanges->toArray();
+        }
+        if (count($afterChanges->getChanges()) > 0) {
+            $this->before->put($key, array_intersect_key($beforeChanges, $afterChanges->getChanges()));
+            $this->after->put($key, $afterChanges->getChanges());
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param string $key
+     * @param Collection|array $beforeChanges
+     * @param Model|Collection $object
+     * @param string $keyComparation
+     * @return $this
+     */
+    public function addBeforeAfterAttachDetachCollection(string $key, Collection $beforeChanges, Collection $afterChanges, string $keyComparation = "id"): self
+    {
+        $beforeUpdateIds = $beforeChanges->pluck($keyComparation);
+        $afterUpdateIds = $afterChanges->pluck($keyComparation);
+
+
+        $diffBefore = $beforeUpdateIds->diff($afterUpdateIds);
+        $diffAfter = $afterUpdateIds->diff($beforeUpdateIds);
+
+        if ($diffAfter->count() > 0 || $diffBefore->count() > 0) {
+            $this->before->put($key, $beforeChanges->pluck("id")->toArray());
+            $this->after->put($key, $afterChanges->pluck("id")->toArray());
+        }
+        return $this;
+    }
+
+    /**
      * @param array|string|Collection|Model|null $before
      * @param array|string|Collection|Model|null $after
      * @return void
@@ -173,7 +197,6 @@ class AuditService extends BaseAuditService
     {
         $this->before = $this->before->merge($before);
         $this->after = $this->after->merge($after);
-
 
         if ($this->after->count() > 0 || $this->before->count() > 0) {
             AuditJob::dispatch($this);

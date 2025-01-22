@@ -208,6 +208,13 @@ class AuditService extends BaseAuditService
 
             $intersectedIds = $beforeUpdateIds->intersect($afterUpdateIds);
 
+            #exist in before but not exist in after
+            $diffBefore = $beforeUpdateIds->diff($afterUpdateIds)->values();
+            foreach ($beforeChanges->whereIn($keyComparassion, $diffBefore)->values() as $item){
+                $this->before[$key]->push([$keyComparassion => $item[$keyComparassion]]);
+            }
+
+
             $intersectedBeforeCollection = $beforeChanges->whereIn($keyComparassion, $intersectedIds)->values();
             $intersectedAfterCollection = $afterChanges->whereIn($keyComparassion, $intersectedIds)->values();
 

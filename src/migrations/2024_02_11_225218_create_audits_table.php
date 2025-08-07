@@ -34,21 +34,14 @@ return new class extends Migration
             $table->string("actor_email")->nullable();
             $table->string("actor_phone")->nullable();
 
-            $table->string("object_table")->nullable();
-            $table->string("object_id")->nullable();
+            $table->string("entry_object_table")->nullable();
+            $table->string("entry_object_id")->nullable();
 
-            $table->text("trail")->nullable();
             $table->text("tag")->nullable();
             $table->text("additional")->nullable();
 
             $table->string("app_name")->nullable();
             $table->timestamps();
-
-            $table->index(["object_table", "object_id"]);
-            $table->index(["actor_table", "actor_id"]);
-            $table->index(["action"]);
-            $table->index(["app_name"]);
-            $table->index(["endpoint", "method"]);
         });
     }
 

@@ -2,29 +2,152 @@
 
 namespace Iqbalatma\LaravelAudit;
 
-use App\Enums\ImportName;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
-use Iqbalatma\LaravelAudit\Abstracts\BaseAuditService;
+use Illuminate\Support\Facades\Auth;
 use Iqbalatma\LaravelAudit\Jobs\AuditJob;
 
-class AuditService extends BaseAuditService
+class AuditService
 {
-    /**
-     * @return self
-     */
-    public static function init(): self
+    public string|null $message;
+    public string|null $action;
+    public string|null $ipAddress;
+    public string|null $endpoint;
+    public string|null $method;
+    public string|null $userAgent;
+    public Collection|array|null $userRequest;
+    public string|null $actorTable;
+    public string|null $actorId;
+    public string|null $actorName;
+    public string|null $actorEmail;
+    public string|null $actorPhone;
+    public string|null $entryObjectTable;
+    public string|null $entryObjectId;
+    public array|null $tag;
+    public array|null $additional;
+    public string|null $appName;
+    public Collection $trails;
+
+    public function __construct(
+        string $action = "",
+        string $message = "",
+    )
     {
-        return new static();
+        $this->additional = Auth::user() && method_exists(Auth::user(), "getRoleNames") && config("laravel_audit.is_role_from_spatie") ?
+            ["actor_role" => Auth::user()?->getRoleNames()->toArray()] :
+            [];
+
+        $this->message = $message;
+        $this->action = $action;
+
+        $this->tag = [];
+        $this->userRequest = [];
+
+
+        $this->actorEmail = null;
+        $this->actorName = null;
+        $this->actorPhone = null;
+
+        $this->entryObjectTable = null;
+        $this->entryObjectId = null;
+        $this->appName = config("laravel_audit.app_name");
+        $this->trails = collect();
+        $this->setNetwork()
+            ->setActor();
+    }
+
+    public static function init(
+        string $action = "",
+        string $message = "",
+    ): self
+    {
+        return new static($message, $action);
+    }
+
+
+    /**
+     * @return $this
+     */
+    protected function setNetwork(): self
+    {
+        $this->method = request()?->getMethod();
+        $this->ipAddress = request()?->getClientIp();
+        $this->userAgent = request()?->header("user-agent");
+        $this->userRequest = $this->filterRequest(collect(request()->all()))->toArray();
+        $this->endpoint = parse_url(request()?->url())["path"] ?? null;
+        return $this;
     }
 
     /**
-     * @param string $action
+     * @param $collection
+     * @return mixed
+     */
+    private function filterRequest($collection): Collection
+    {
+        return $collection->map(function ($item) {
+            // if item is array, call recursive to sub-array
+            if (is_array($item)) {
+                return $this->filterRequest(collect($item));  // recursive
+            }
+
+            // if item is not object UploadedFile, return item
+            if (!($item instanceof \Illuminate\Http\UploadedFile)) {
+                return $item;
+            }
+
+            // if item is file, return null
+            return null;
+        })->filter(function ($item) {
+            // delete item  null (because of file)
+            return $item !== null;
+        });
+    }
+
+    /**
      * @return $this
      */
-    public function setAction(string $action): self
+    protected function setActor(): self
     {
-        $this->action = $action;
+        $user = Auth::user();
+        if ($user) {
+            $this->actorTable = $user->getTable();
+            $this->actorId = $user->getKey();
+
+            if (config("laravel_audit.actor_key.email")) {
+                $this->actorEmail = $user->{config("laravel_audit.actor_key.email")};
+            }
+
+            if (config("laravel_audit.actor_key.phone")) {
+                $this->actorPhone = $user->{config("laravel_audit.actor_key.phone")};
+            }
+
+            if (config("laravel_audit.actor_key.name")) {
+                $this->actorName = $user->{config("laravel_audit.actor_key.name")};
+            }
+        }
+
+        return $this;
+    }
+
+
+    /**
+     * @param string $appName
+     * @return $this
+     */
+    public function setAppName(string $appName): self
+    {
+        $this->appName = $appName;
+        return $this;
+    }
+
+
+    /**
+     * @return $this
+     */
+    public function setEntryObject(Model $model): self
+    {
+        $this->entryObjectTable = $model->getTable();
+        $this->entryObjectId = $model->getKey();
         return $this;
     }
 
@@ -39,17 +162,6 @@ class AuditService extends BaseAuditService
     }
 
     /**
-     * @param string $message
-     * @return $this
-     */
-    public function setMessage(string $message): self
-    {
-        $this->message = $message;
-        return $this;
-    }
-
-
-    /**
      * @param array $additional
      * @return $this
      */
@@ -59,211 +171,120 @@ class AuditService extends BaseAuditService
         return $this;
     }
 
-
     /**
-     * @return $this
+     * @throws \JsonException
      */
-    public function setObject(Model $model): self
+    public function addSingleTrail(Model $model, array $before, array $after, array $tag = [], array $additional = []): self
     {
-        $this->objectTable = $model->getTable();
-        $this->objectId = $model->getKey();
-        return $this;
-    }
+        $diffBefore = [];
+        $diffAfter = [];
 
+        # find key that different between before and after (exist in before but does not exist in after and so forth)
+        $diffKeyBefore = array_diff_key($before, $after);
+        $diffKeyAfter = array_diff_key($after, $before);
+        $diffKeys = array_merge($diffKeyBefore + $diffKeyAfter);
 
-    /**
-     * @param string $key
-     * @param array|string|Collection|Model|null $before
-     * @return $this
-     */
-    public function addBefore(string $key, array|string|null|Collection|Model $before): self
-    {
-        $this->before->put($key, $before);
+        foreach ($before as $key => $beforeValue) {
+            $afterValue = $after[$key] ?? null;
 
-        return $this;
-    }
-
-
-    /**
-     * @param string $key
-     * @param array|string|Collection|Model|null $after
-     * @return $this
-     */
-    public function addAfter(string $key, array|string|null|Collection|Model $after): self
-    {
-        $this->after->put($key, $after);
-        return $this;
-    }
-
-    /**
-     * @param string $appName
-     * @return $this
-     */
-    public function setAppName(string $appName): self
-    {
-        $this->appName = $appName;
-        return $this;
-    }
-
-    /**
-     * @param string $key
-     * @param Collection|array $beforeChanges
-     * @param Model|Collection $object
-     * @param string $keyComparation
-     * @return $this
-     */
-    /**
-     * @param string $key
-     * @param Collection|array $beforeChanges
-     * @param Model|Collection $object
-     * @param string $keyComparation
-     * @return $this
-     * @deprecated use addBeforeAfterSingleEntity for single entity and
-     * addBeforeAfterAttachDetachCollection for sync collection one to many or many to many
-     */
-    public function addBeforeAfter(string $key, Collection|array $beforeChanges, Model|Collection $object, string $keyComparation = "id"): self
-    {
-        if ($beforeChanges instanceof Collection && $object instanceof Collection) {
-            $beforeUpdateIds = $beforeChanges->pluck($keyComparation);
-            $afterUpdateIds = $object->pluck($keyComparation);
-
-
-            $diffBefore = $beforeUpdateIds->diff($afterUpdateIds);
-            $diffAfter = $afterUpdateIds->diff($beforeUpdateIds);
-
-            if ($diffAfter->count() > 0 || $diffBefore->count() > 0) {
-                $this->before->put($key, $beforeChanges->toArray());
-                $this->after->put($key, $object->toArray());
+            if (
+                !is_string($beforeValue) && !is_null($beforeValue) && !is_numeric($beforeValue) && !is_bool($beforeValue) &&
+                !is_string($afterValue) && !is_null($afterValue) && !is_numeric($afterValue) && !is_bool($afterValue)
+            ) { #skip iterable
+                continue;
             }
-        } elseif (is_array($beforeChanges) && $object instanceof Model) {
-            if (count($object->getChanges()) > 0) {
-                $this->before->put($key, array_intersect_key($beforeChanges, $object->getChanges()));
-                $this->after->put($key, $object->getChanges());
+            if ($afterValue !== $beforeValue) {
+                $diffBefore[$key] = $beforeValue;
+                $diffAfter[$key] = $afterValue;
             }
         }
 
-        return $this;
-    }
+        #if there are diff keys, looping 2 sideways
+        if ($diffKeys) {
+            foreach ($after as $key => $afterValue) {
+                $beforeValue = $before[$key] ?? null;
 
-    /**
-     * @param string $key
-     * @param Collection|array $beforeChanges
-     * @param Model|Collection $object
-     * @param string $keyComparation
-     * @return $this
-     */
-    public function addBeforeAfterSingleEntity(string $key, Model|array $beforeChanges, Model|array $afterChanges): self
-    {
-        if ($beforeChanges instanceof Model) {
-            $beforeChanges = $beforeChanges->toArray();
-        }
-
-        if ($afterChanges instanceof Model) {
-            $afterChanges = $afterChanges->toArray();
-        }
-
-        $differences = array_diff_assoc($beforeChanges, $afterChanges);
-        $targetKeys = array_keys($differences);
-
-        if (count($targetKeys) > 0) {
-            $this->before->put($key, array_intersect_key($beforeChanges, array_flip($targetKeys)));
-            $this->after->put($key, array_intersect_key($afterChanges, array_flip($targetKeys)));
-        }
-
-
-        return $this;
-    }
-
-    /**
-     * @param string $key
-     * @param Collection|array $beforeChanges
-     * @param Model|Collection $object
-     * @param string $keyComparation
-     * @return $this
-     */
-    public function addBeforeAfterAttachDetachCollection(string $key, Collection $beforeChanges, Collection $afterChanges, string $keyComparation = "id"): self
-    {
-        $beforeUpdateIds = $beforeChanges->pluck($keyComparation);
-        $afterUpdateIds = $afterChanges->pluck($keyComparation);
-
-
-        $diffBefore = $beforeUpdateIds->diff($afterUpdateIds);
-        $diffAfter = $afterUpdateIds->diff($beforeUpdateIds);
-
-        if ($diffAfter->count() > 0 || $diffBefore->count() > 0) {
-            $this->before->put($key, $beforeChanges->pluck("id")->toArray());
-            $this->after->put($key, $afterChanges->pluck("id")->toArray());
-        }
-        return $this;
-    }
-
-    public function addBeforeAfterCollectionChanges(string $key, Collection $beforeChanges, Collection $afterChanges, string $keyComparassion = "id"): self
-    {
-        if ($beforeChanges->count() > 0) {
-            $this->before[$key] = collect();
-            $this->after[$key] = collect();
-
-            $beforeUpdateIds = $beforeChanges->pluck($keyComparassion);
-            $afterUpdateIds = $afterChanges->pluck($keyComparassion);
-
-            $intersectedIds = $beforeUpdateIds->intersect($afterUpdateIds);
-
-            #exist in before but not exist in after
-            $diffBefore = $beforeUpdateIds->diff($afterUpdateIds)->values();
-            foreach ($beforeChanges->whereIn($keyComparassion, $diffBefore)->values() as $item){
-                $this->before[$key]->push([$keyComparassion => $item[$keyComparassion]]);
-            }
-
-
-            $intersectedBeforeCollection = $beforeChanges->whereIn($keyComparassion, $intersectedIds)->values();
-            $intersectedAfterCollection = $afterChanges->whereIn($keyComparassion, $intersectedIds)->values();
-
-            foreach ($intersectedBeforeCollection as $intersectedBefore) {
-                $intersectedAfter = $intersectedAfterCollection->where($keyComparassion, $intersectedBefore[$keyComparassion])->first();
-
-                if (!$intersectedAfter) {
+                if (
+                    !is_string($beforeValue) && !is_null($beforeValue) && !is_numeric($beforeValue) && !is_bool($beforeValue) &&
+                    !is_string($afterValue) && !is_null($afterValue) && !is_numeric($afterValue) && !is_bool($afterValue)
+                ) { #skip iterable
                     continue;
                 }
 
-                if ($intersectedAfter instanceof Model) {
-                    $intersectedAfter = $intersectedAfter->toArray();
+                if ($beforeValue !== $afterValue) {
+                    $diffBefore[$key] = $beforeValue;
+                    $diffAfter[$key] = $afterValue;
                 }
-
-                if ($intersectedBefore instanceof Model) {
-                    $intersectedBefore = $intersectedBefore->toArray();
-                }
-
-                $after = array_diff_assoc($intersectedAfter, $intersectedBefore);
-
-                $before = array_intersect_key($intersectedBefore, array_flip(array_keys($after)));
-
-                $this->before[$key]->push(array_merge([$keyComparassion => $intersectedBefore[$keyComparassion]], $before));
-                $this->after[$key]->push(array_merge([$keyComparassion => $intersectedAfter[$keyComparassion]], $after));
-            }
-
-            $existingCollection = $this->before[$key]->pluck($keyComparassion);
-            $newCollectionItem = $afterChanges->whereNotIn($keyComparassion, $existingCollection)->values();
-
-            if ($newCollectionItem->count() > 0) {
-                $this->after[$key] = $this->after[$key]->merge($newCollectionItem);
             }
         }
 
+        if (empty($diffBefore) && empty($diffAfter)) {
+            return $this;
+        }
+
+        $this->trails->push([
+            "object_id" => $model->getKey(),
+            "object_table" => $model->getTable(),
+            "before" => json_encode($diffBefore, JSON_THROW_ON_ERROR),
+            "after" => json_encode($diffAfter, JSON_THROW_ON_ERROR),
+            "tag" => json_encode($tag, JSON_THROW_ON_ERROR),
+            "additional" => json_encode($additional, JSON_THROW_ON_ERROR),
+        ]);
         return $this;
     }
 
     /**
-     * @param array|string|Collection|Model|null $before
-     * @param array|string|Collection|Model|null $after
+     * @param string|null $table
+     * @param string|null $id
+     * @param array $before
+     * @param array $after
+     * @param array $tag
+     * @param array $additional
+     * @return $this
+     * @throws \JsonException
+     */
+    public function addRelationalTrail(string $table = null, array $before = [], array $after = [], array $tag = [], array $additional = []): self
+    {
+        $beforeMap = collect($before)->keyBy('b_id');
+        $afterMap = collect($after)->keyBy('b_id');
+
+        $diffBefore = [];
+        $diffAfter = [];
+
+        $allIds = $beforeMap->keys()->merge($afterMap->keys())->unique();
+        foreach ($allIds as $b_id) {
+            $beforeItem = $beforeMap->get($b_id);
+            $afterItem = $afterMap->get($b_id);
+
+            if ($beforeItem !== $afterItem) {
+                if ($beforeItem !== null) {
+                    $diffBefore[] = $beforeItem;
+                }
+                if ($afterItem !== null) {
+                    $diffAfter[] = $afterItem;
+                }
+            }
+        }
+
+        if (empty($diffBefore) && empty($diffAfter)) {
+            return $this;
+        }
+
+        $this->trails->push([
+            "object_table" => $table,
+            "before" => json_encode($diffBefore, JSON_THROW_ON_ERROR),
+            "after" => json_encode($diffAfter, JSON_THROW_ON_ERROR),
+            "tag" => json_encode($tag, JSON_THROW_ON_ERROR),
+            "additional" => json_encode($additional, JSON_THROW_ON_ERROR),
+        ]);
+        return $this;
+    }
+
+    /**
      * @return void
      */
-    public function log(array|string|null|Collection|Model $before = [], array|string|null|Collection|Model $after = []): void
+    public function execute(): void
     {
-        $this->before = $this->before->merge($before);
-        $this->after = $this->after->merge($after);
-
-        if ($this->after->count() > 0 || $this->before->count() > 0) {
-            AuditJob::dispatch($this);
-        }
+        AuditJob::dispatch($this);
     }
 }

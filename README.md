@@ -25,7 +25,7 @@ First you need to initiate the audit service. After that, you can set all data w
 ```php
 <?php
 
-use Iqbalatma\LaravelAudit\AuditService;
+use Iqbalatma\LaravelAudit\AuditService2;
 use App\Models\Product;
 
 $product = Product::create([
@@ -34,7 +34,7 @@ $product = Product::create([
   "price"    => 10000000
 ]);
 
-$audit = AuditService::init(); #initiate object
+$audit = AuditService2::init(); #initiate object
 
 #all of this value is optional
 $audit->setAction("ADD_NEW_DATA")

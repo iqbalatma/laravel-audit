@@ -61,7 +61,7 @@ class AuditService
         string $message = "",
     ): self
     {
-        return new static($message, $action);
+        return new static($action, $message);
     }
 
 

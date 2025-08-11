@@ -3,6 +3,7 @@
 namespace Iqbalatma\LaravelAudit\Jobs;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -14,7 +15,7 @@ use Iqbalatma\LaravelAudit\Model\Audit;
 use JsonException;
 use Throwable;
 
-class AuditJob implements ShouldQueue
+class AuditJob implements ShouldQueue, ShouldDispatchAfterCommit
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 

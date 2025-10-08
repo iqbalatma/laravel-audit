@@ -2,10 +2,12 @@
 
 namespace Iqbalatma\LaravelAudit;
 
+use Illuminate\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Iqbalatma\LaravelAudit\Jobs\AuditJob;
+use RuntimeException;
 
 class AuditService
 {
@@ -27,14 +29,27 @@ class AuditService
     public array|null $additional;
     public string|null $appName;
     public Collection $trails;
+    /** @var Model|Authenticatable */
+    public Model $user;
 
     public function __construct(
         string $action = "",
         string $message = "",
+        Model  $user = null
     )
     {
-        $this->additional = Auth::user() && method_exists(Auth::user(), "getRoleNames") && config("laravel_audit.is_role_from_spatie") ?
-            ["actor_role" => Auth::user()?->getRoleNames()->toArray()] :
+        // check user class model
+        if ($user) {
+            $userModel = config("laravel_audit.user_model");
+            if ($userModel && $user instanceof $userModel) {
+                $this->user = $user;
+            } else {
+                throw new RuntimeException("User class must be an instance of $userModel");
+            }
+        }
+
+        $this->additional = isset($this->user) && method_exists($this->user, "getRoleNames") && config("laravel_audit.is_role_from_spatie") ?
+            ["actor_role" => $this->user?->getRoleNames()->toArray()] :
             [];
 
         $this->message = $message;
@@ -52,8 +67,8 @@ class AuditService
         $this->entryObjectId = null;
         $this->appName = config("laravel_audit.app_name");
         $this->trails = collect();
-        $this->setNetwork()
-            ->setActor();
+        $this->setNetwork();
+        $this->setActor($this->user);
     }
 
     public static function init(
@@ -106,9 +121,9 @@ class AuditService
     /**
      * @return $this
      */
-    protected function setActor(): self
+    protected function setActor(Model|null $user): self
     {
-        $user = Auth::user();
+        $user = $user ?? Auth::user();
         if ($user) {
             $this->actorTable = $user->getTable();
             $this->actorId = $user->getKey();

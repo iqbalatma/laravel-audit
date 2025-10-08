@@ -30,7 +30,7 @@ class AuditService
     public string|null $appName;
     public Collection $trails;
     /** @var Model|Authenticatable */
-    public Model $user;
+    public Model|null $user;
 
     public function __construct(
         string $action = "",
@@ -38,6 +38,12 @@ class AuditService
         Model  $user = null
     )
     {
+        $this->user = null;
+        $this->actorId = null;
+        $this->actorEmail = null;
+        $this->actorTable = null;
+        $this->actorName = null;
+        $this->actorPhone = null;
         // check user class model
         if ($user) {
             $userModel = config("laravel_audit.user_model");
@@ -47,8 +53,7 @@ class AuditService
                 throw new RuntimeException("User class must be an instance of $userModel");
             }
         }
-
-        $this->additional = isset($this->user) && method_exists($this->user, "getRoleNames") && config("laravel_audit.is_role_from_spatie") ?
+        $this->additional = $this->user && method_exists($this->user, "getRoleNames") && config("laravel_audit.is_role_from_spatie") ?
             ["actor_role" => $this->user?->getRoleNames()->toArray()] :
             [];
 

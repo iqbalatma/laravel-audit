@@ -5,6 +5,7 @@ namespace Iqbalatma\LaravelAudit\Abstracts;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Iqbalatma\LaravelAudit\Model\User;
 
 abstract class BaseAuditService
 {
@@ -95,7 +96,7 @@ abstract class BaseAuditService
      */
     protected function setActor(): self
     {
-        $user = Auth::user();
+        $user = Auth::user() ?? getDefaultUser();
 
         $this->actorTable = $user?->getTable();
         $this->actorId = $user?->getKey();

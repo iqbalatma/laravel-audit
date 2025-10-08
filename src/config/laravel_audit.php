@@ -10,5 +10,11 @@ return [
         "email" => "email",
         "phone" => "phone",
         "name" => "name",
+    ],
+    "default_audit_actor" => [
+        'name' => 'Default Audit Actor',
+        'username' => 'default-audit-actor',
+        'email' => 'auditactor@default.co',
+        'password' => 'passwordAuditActor',
     ]
 ];

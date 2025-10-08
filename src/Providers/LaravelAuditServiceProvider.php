@@ -28,7 +28,11 @@ class LaravelAuditServiceProvider extends ServiceProvider
         ]);
 
         $this->publishes([
-            __DIR__.'/../migrations/' => database_path('migrations')
+            __DIR__ . '/../database/migrations/' => database_path('migrations')
         ], 'audit-migrations');
+
+        $this->publishes([
+            __DIR__ . '/../database/seeders/' => database_path('seeders')
+        ], 'audit-seeders');
     }
 }

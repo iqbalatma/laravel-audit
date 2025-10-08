@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Iqbalatma\LaravelAudit\Jobs\AuditJob;
+use Iqbalatma\LaravelAudit\Model\User;
 use RuntimeException;
 
 class AuditService
@@ -30,29 +31,18 @@ class AuditService
     public string|null $appName;
     public Collection $trails;
     /** @var Model|Authenticatable */
-    public Model|null $user;
 
     public function __construct(
         string $action = "",
         string $message = "",
-        Model  $user = null
     )
     {
-        $this->user = null;
         $this->actorId = null;
         $this->actorEmail = null;
         $this->actorTable = null;
         $this->actorName = null;
         $this->actorPhone = null;
-        // check user class model
-        if ($user) {
-            $userModel = config("laravel_audit.user_model");
-            if ($userModel && $user instanceof $userModel) {
-                $this->user = $user;
-            } else {
-                throw new RuntimeException("User class must be an instance of $userModel");
-            }
-        }
+
         $this->additional = $this->user && method_exists($this->user, "getRoleNames") && config("laravel_audit.is_role_from_spatie") ?
             ["actor_role" => $this->user?->getRoleNames()->toArray()] :
             [];
@@ -73,7 +63,7 @@ class AuditService
         $this->appName = config("laravel_audit.app_name");
         $this->trails = collect();
         $this->setNetwork();
-        $this->setActor($this->user);
+        $this->setActor();
     }
 
     public static function init(
@@ -126,9 +116,9 @@ class AuditService
     /**
      * @return $this
      */
-    protected function setActor(Model|null $user): self
+    protected function setActor(): self
     {
-        $user = $user ?? Auth::user();
+        $user = Auth::user() ?? getDefaultUser();
         if ($user) {
             $this->actorTable = $user->getTable();
             $this->actorId = $user->getKey();

@@ -16,7 +16,7 @@ php artisan vendor:publish --provider="Iqbalatma\LaravelAudit\Providers\LaravelA
 
 After publishing migration, you can run the migration.
 ```console
-php artisan migrate
+php artisan migrate --seed
 ```
 
 ## How to use ?

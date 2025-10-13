@@ -29,15 +29,18 @@ class AuditService
     public array|null $additional;
     public string|null $appName;
     public Collection $trails;
-    /** @var Model|Authenticatable */
+    /** @var Model|Authenticatable|null */
     public Model|null $user;
+    public string $guard;
 
     public function __construct(
         string $action = "",
         string $message = "",
+        string $guard = "",
         Model  $user = null
     )
     {
+        $this->guard = $guard === "" ? config("auth.defaults.guard") : $guard;
         $this->user = null;
         $this->actorId = null;
         $this->actorEmail = null;
@@ -79,9 +82,11 @@ class AuditService
     public static function init(
         string $action = "",
         string $message = "",
+        string $guard = "",
+        Model  $user = null
     ): self
     {
-        return new static($action, $message);
+        return new static($action, $message, $guard, $user);
     }
 
 
@@ -126,9 +131,9 @@ class AuditService
     /**
      * @return $this
      */
-    protected function setActor(Model|null $user): self
+    protected function setActor(Model|\Illuminate\Contracts\Auth\Authenticatable|null $user): self
     {
-        $user = $user ?? Auth::user();
+        $user = $user ?? Auth::guard($this->guard)->user();
         if ($user) {
             $this->actorTable = $user->getTable();
             $this->actorId = $user->getKey();

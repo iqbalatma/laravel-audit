@@ -27,6 +27,7 @@ First you need to initiate the audit service. After that, you can set all data w
 
 use Iqbalatma\LaravelAudit\AuditService;
 use App\Models\Product;
+use Illuminate\Support\Facades\Auth;
 
 $product = Product::create([
   "name"     => "laptop",
@@ -35,14 +36,17 @@ $product = Product::create([
 ]);
 
 $audit = AuditService::init(); #initiate object
+#or
+$audit = AuditService::init(action: "CREATE_PRODUCT", message: "Create product via method abc in class xyz", entryObject: $product, guard: "web", user: Auth::user());
 
 #all of this value is optional
- AuditService::init("CREATE_PRODUCT", "Create product via method abc in class xyz")
-    ->setEntryObject($product) #required
+AuditService::init("CREATE_PRODUCT", "Create product via method abc in class xyz")
+    ->setEntryObject($product) #required, and become optional if you already set via init
     ->addSingleTrail($role, null, $role->toArray()) #required
     ->setAppName("E-Commerce") #optional
     ->setTag(["level" => "important"]) #optional
-    ->setAdditional(["role" => "ADMIN"])
+    ->setAdditional(["role" => "ADMIN"]) #optional
+    ->setActor(Auth::user()) #optional
     ->execute();
 ?>
 

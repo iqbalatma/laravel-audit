@@ -33,6 +33,7 @@ class AuditJob implements ShouldQueue, ShouldDispatchAfterCommit
      */
     public function handle(): void
     {
+        dd($this->audit->trails);
         if ($this->audit->trails->count() > 0) {
             DB::beginTransaction();
 

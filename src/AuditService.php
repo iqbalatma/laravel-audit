@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Iqbalatma\LaravelAudit\Jobs\AuditJob;
+use JsonException;
 use RuntimeException;
 
 class AuditService
@@ -215,39 +216,33 @@ class AuditService
      */
     public function addSingleTrail(Model $model, array|null $before = null, array|null $after = null, array $tag = [], array $additional = []): self
     {
+        $trail = [
+            "object_id" => $model->getKey(),
+            "object_table" => $model->getTable(),
+            "tag" => json_encode($tag, JSON_THROW_ON_ERROR),
+            "additional" => json_encode($additional, JSON_THROW_ON_ERROR),
+        ];
         if (is_null($before) && is_null($after)) {
-            $this->trails->push([
-                "object_id" => $model->getKey(),
-                "object_table" => $model->getTable(),
-                "before" => $before,
-                "after" => $after,
-                "tag" => json_encode($tag, JSON_THROW_ON_ERROR),
-                "additional" => json_encode($additional, JSON_THROW_ON_ERROR),
-            ]);
+            $trail["before"] = $before;
+            $trail["after"] = $after;
+            $this->trails->push($trail);
+
             return $this;
         }
 
         if (is_null($before) && is_array($after)) {
-            $this->trails->push([
-                "object_id" => $model->getKey(),
-                "object_table" => $model->getTable(),
-                "before" => $before,
-                "after" => json_encode($after, JSON_THROW_ON_ERROR),
-                "tag" => json_encode($tag, JSON_THROW_ON_ERROR),
-                "additional" => json_encode($additional, JSON_THROW_ON_ERROR),
-            ]);
+            $trail["before"] = $before;
+            $trail["after"] = json_encode($after, JSON_THROW_ON_ERROR);
+            $this->trails->push($trail);
+
             return $this;
         }
 
         if (is_null($after) && is_array($before)) {
-            $this->trails->push([
-                "object_id" => $model->getKey(),
-                "object_table" => $model->getTable(),
-                "before" => json_encode($before, JSON_THROW_ON_ERROR),
-                "after" => $after,
-                "tag" => json_encode($tag, JSON_THROW_ON_ERROR),
-                "additional" => json_encode($additional, JSON_THROW_ON_ERROR),
-            ]);
+            $trail["before"] = json_encode($before, JSON_THROW_ON_ERROR);
+            $trail["after"] = $after;
+            $this->trails->push($trail);
+
             return $this;
         }
 
@@ -292,70 +287,63 @@ class AuditService
                 }
             }
         }
-
         if (empty($diffBefore) && empty($diffAfter)) {
             return $this;
         }
 
-        $this->trails->push([
-            "object_id" => $model->getKey(),
-            "object_table" => $model->getTable(),
-            "before" => json_encode($diffBefore, JSON_THROW_ON_ERROR),
-            "after" => json_encode($diffAfter, JSON_THROW_ON_ERROR),
-            "tag" => json_encode($tag, JSON_THROW_ON_ERROR),
-            "additional" => json_encode($additional, JSON_THROW_ON_ERROR),
-        ]);
+        $trail["before"] = json_encode($diffBefore, JSON_THROW_ON_ERROR);
+        $trail["after"] = json_encode($diffAfter, JSON_THROW_ON_ERROR);
+        $this->trails->push($trail);
         return $this;
     }
 
     /**
-     * @param string|null $table
-     * @param string|null $id
-     * @param array $before
-     * @param array $after
+     * @param string|Model|null $table
+     * @param array|Collection|null $before
+     * @param array|Collection|null $after
      * @param array $tag
      * @param array $additional
      * @return $this
-     * @throws \JsonException
+     * @throws JsonException
      */
-    public function addRelationalTrail(string $table = null, array|null $before = null, array|null $after = null, array $tag = [], array $additional = []): self
+    public function addRelationalTrail(string|Model $table = null, array|Collection|null $before = null, array|Collection|null $after = null, array $tag = [], array $additional = []): self
     {
+        if ($table instanceof Model) {
+            $table = $table->getTable();
+        }
+
+        $trail = [
+            "object_table" => $table,
+            "tag" => json_encode($tag, JSON_THROW_ON_ERROR),
+            "additional" => json_encode($additional, JSON_THROW_ON_ERROR),
+        ];
+
         if (is_null($before) && is_null($after)) {
-            $this->trails->push([
-                "object_table" => $table,
-                "before" => $before,
-                "after" => $after,
-                "tag" => json_encode($tag, JSON_THROW_ON_ERROR),
-                "additional" => json_encode($additional, JSON_THROW_ON_ERROR),
-            ]);
+            $trail["before"] = $before;
+            $trail["after"] = $before;
+
+            $this->trails->push($trail);
             return $this;
         }
 
-        if (is_null($before) && is_array($after)) {
-            $this->trails->push([
-                "object_table" => $table,
-                "before" => $before,
-                "after" => json_encode($after, JSON_THROW_ON_ERROR),
-                "tag" => json_encode($tag, JSON_THROW_ON_ERROR),
-                "additional" => json_encode($additional, JSON_THROW_ON_ERROR),
-            ]);
+        if (is_null($before) && (is_array($after) || $after instanceof Collection)) {
+            $trail["before"] = $before;
+            $trail["after"] = json_encode(is_array($after) ? $after : $after->toArray(), JSON_THROW_ON_ERROR);
+
+            $this->trails->push($trail);
             return $this;
         }
 
-        if (is_null($after) && is_array($before)) {
-            $this->trails->push([
-                "object_table" => $table,
-                "before" => json_encode($before, JSON_THROW_ON_ERROR),
-                "after" => $after,
-                "tag" => json_encode($tag, JSON_THROW_ON_ERROR),
-                "additional" => json_encode($additional, JSON_THROW_ON_ERROR),
-            ]);
+        if (is_null($after) && (is_array($before) || $before instanceof Collection)) {
+            $trail["before"] = json_encode(is_array($before) ? $before : $before->toArray(), JSON_THROW_ON_ERROR);
+            $trail["after"] = $after;
+
+            $this->trails->push($trail);
             return $this;
         }
 
         $beforeMap = collect($before)->keyBy('b_id');
         $afterMap = collect($after)->keyBy('b_id');
-
         $diffBefore = [];
         $diffAfter = [];
 

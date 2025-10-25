@@ -2,6 +2,7 @@
 
 namespace Iqbalatma\LaravelAudit;
 
+use BackedEnum;
 use Illuminate\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
@@ -29,59 +30,75 @@ class AuditService
     public array|null $additional;
     public string|null $appName;
     public Collection $trails;
-    /** @var Model|Authenticatable|null */
-    public Model|null $user;
+    /** @var Authenticatable|Model|null */
+    public Model|null|Authenticatable $user;
     public string $guard;
 
     public function __construct(
-        string $action = "",
-        string $message = "",
-        string $guard = "",
-        Model  $user = null
+        string     $action = "",
+        string     $message = "",
+        Model|null $entryObject = null,
+        string     $guard = "",
+        Model      $user = null
     )
     {
+        if ($action instanceof BackedEnum) {
+            if ($message === "") {
+                $message = (string)$action->value;
+            } else {
+                $message = (string)$action->value . " " . $message;
+            }
+            $action = $action->name;
+        }
         $this->guard = $guard === "" ? config("auth.defaults.guard") : $guard;
         $this->user = null;
         $this->actorId = null;
-        $this->actorEmail = null;
         $this->actorTable = null;
+        $this->additional = [];
+        $this->message = $message;
+        $this->action = $action;
+        $this->tag = [];
+        $this->userRequest = [];
+        $this->actorEmail = null;
         $this->actorName = null;
         $this->actorPhone = null;
+        $this->entryObjectTable = null;
+        $this->entryObjectId = null;
+        $this->appName = config("laravel_audit.app_name");
+        $this->trails = collect();
 
         #no matter what is user model, just set it as actor if it passed through construct
         if ($user) {
             $this->user = $user;
         }
+
+
+        $this->setNetwork();
+        $this->setActor($this->user);
+        if ($entryObject) {
+            $this->setEntryObject($entryObject);
+        }
+
         $this->additional = $this->user && method_exists($this->user, "getRoleNames") && config("laravel_audit.is_role_from_spatie") ?
             ["actor_role" => $this->user?->getRoleNames()->toArray()] :
             [];
-
-        $this->message = $message;
-        $this->action = $action;
-
-        $this->tag = [];
-        $this->userRequest = [];
-
-
-        $this->actorEmail = null;
-        $this->actorName = null;
-        $this->actorPhone = null;
-
-        $this->entryObjectTable = null;
-        $this->entryObjectId = null;
-        $this->appName = config("laravel_audit.app_name");
-        $this->trails = collect();
-        $this->setNetwork();
-        $this->setActor($this->user);
     }
 
     public static function init(
-        string $action = "",
-        string $message = "",
-        string $guard = "",
-        Model  $user = null
+        BackedEnum|string $action = "",
+        string            $message = "",
+        string            $guard = "",
+        Model             $user = null
     ): self
     {
+        if ($action instanceof BackedEnum) {
+            if ($message === "") {
+                $message = (string)$action->value;
+            } else {
+                $message = (string)$action->value . " " . $message;
+            }
+            $action = $action->name;
+        }
         return new static($action, $message, $guard, $user);
     }
 

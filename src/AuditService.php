@@ -47,14 +47,10 @@ class AuditService
         $this->actorTable = null;
         $this->actorName = null;
         $this->actorPhone = null;
-        // check user class model
+
+        #no matter what is user model, just set it as actor if it passed through construct
         if ($user) {
-            $userModel = config("laravel_audit.user_model");
-            if ($userModel && $user instanceof $userModel) {
-                $this->user = $user;
-            } else {
-                throw new RuntimeException("User class must be an instance of $userModel");
-            }
+            $this->user = $user;
         }
         $this->additional = $this->user && method_exists($this->user, "getRoleNames") && config("laravel_audit.is_role_from_spatie") ?
             ["actor_role" => $this->user?->getRoleNames()->toArray()] :

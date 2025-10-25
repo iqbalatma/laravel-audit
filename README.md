@@ -25,7 +25,7 @@ First you need to initiate the audit service. After that, you can set all data w
 ```php
 <?php
 
-use Iqbalatma\LaravelAudit\AuditService2;
+use Iqbalatma\LaravelAudit\AuditService;
 use App\Models\Product;
 
 $product = Product::create([
@@ -34,22 +34,16 @@ $product = Product::create([
   "price"    => 10000000
 ]);
 
-$audit = AuditService2::init(); #initiate object
+$audit = AuditService::init(); #initiate object
 
 #all of this value is optional
-$audit->setAction("ADD_NEW_DATA")
-      ->setMessage("add new data product with category #digitcal")
-      ->setTag(["#product"])
-      ->setAdditional(["this could be meta data or something else"])
-      ->setObject($product)
-      ->setAppName("Product App") #in case you will use this package in multiple project and sharing database, you can defined the record from which app
-      ->addBefore("product", null) #data before process, key product is null
-      ->addAfter("product", $product); #data after process, the key of product is not null
-      ->log(); #you can also write before after here log(["product" => null], ["product" => $product]), first parameter as data before, and second parameter as data after
-#if your code in single function, you can just use log, without addAfter and addBefore
-#but if your code in separate function, you can use that method to append key of collection
-#you can also add Collection, string, array as second parameter of addAfter and addBefore
-#
+ AuditService::init("CREATE_PRODUCT", "Create product via method abc in class xyz")
+    ->setEntryObject($product) #required
+    ->addSingleTrail($role, null, $role->toArray()) #required
+    ->setAppName("E-Commerce") #optional
+    ->setTag(["level" => "important"]) #optional
+    ->setAdditional(["role" => "ADMIN"])
+    ->execute();
 ?>
 
 ```

@@ -87,6 +87,7 @@ class AuditService
     public static function init(
         BackedEnum|string $action = "",
         string            $message = "",
+        Model|null        $entryObject = null,
         string            $guard = "",
         Model             $user = null
     ): self
@@ -99,7 +100,7 @@ class AuditService
             }
             $action = $action->name;
         }
-        return new static($action, $message, $guard, $user);
+        return new static($action, $message, $entryObject, $guard, $user);
     }
 
 

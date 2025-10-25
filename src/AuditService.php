@@ -145,7 +145,7 @@ class AuditService
     /**
      * @return $this
      */
-    protected function setActor(Model|\Illuminate\Contracts\Auth\Authenticatable|null $user): self
+    public function setActor(Model|\Illuminate\Contracts\Auth\Authenticatable|null $user): self
     {
         $user = $user ?? Auth::guard($this->guard)->user();
         if ($user) {

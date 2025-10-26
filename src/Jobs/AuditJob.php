@@ -10,7 +10,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Iqbalatma\LaravelAudit\AuditService;
-use Iqbalatma\LaravelAudit\AuditService2;
 use Iqbalatma\LaravelAudit\Model\Audit;
 use JsonException;
 use Throwable;
@@ -33,13 +32,12 @@ class AuditJob implements ShouldQueue, ShouldDispatchAfterCommit
      */
     public function handle(): void
     {
-        dd($this->audit->trails);
         if ($this->audit->trails->count() > 0) {
             DB::beginTransaction();
 
             /** @var Audit $auditModel */
             $auditModel =
-            config( 'laravel_audit.audit_model')::query()->create([
+                config( 'laravel_audit.audit_model')::query()->create([
                     "message" => $this->audit->message,
                     "action" => $this->audit->action,
                     "ip_address" => $this->audit->ipAddress,
@@ -73,7 +71,5 @@ class AuditJob implements ShouldQueue, ShouldDispatchAfterCommit
 
             DB::commit();
         }
-
-
     }
 }

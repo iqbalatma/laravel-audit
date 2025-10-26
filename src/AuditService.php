@@ -342,37 +342,9 @@ class AuditService
             return $this;
         }
 
-        $beforeMap = collect($before)->keyBy('b_id');
-        $afterMap = collect($after)->keyBy('b_id');
-        $diffBefore = [];
-        $diffAfter = [];
-
-        $allIds = $beforeMap->keys()->merge($afterMap->keys())->unique();
-        foreach ($allIds as $b_id) {
-            $beforeItem = $beforeMap->get($b_id);
-            $afterItem = $afterMap->get($b_id);
-
-            if ($beforeItem !== $afterItem) {
-                if ($beforeItem !== null) {
-                    $diffBefore[] = $beforeItem;
-                }
-                if ($afterItem !== null) {
-                    $diffAfter[] = $afterItem;
-                }
-            }
-        }
-
-        if (empty($diffBefore) && empty($diffAfter)) {
-            return $this;
-        }
-
-        $this->trails->push([
-            "object_table" => $table,
-            "before" => json_encode($diffBefore, JSON_THROW_ON_ERROR),
-            "after" => json_encode($diffAfter, JSON_THROW_ON_ERROR),
-            "tag" => json_encode($tag, JSON_THROW_ON_ERROR),
-            "additional" => json_encode($additional, JSON_THROW_ON_ERROR),
-        ]);
+        $trail["before"] = json_encode(is_array($before) ? $before : $before->toArray(), JSON_THROW_ON_ERROR);
+        $trail["after"] = json_encode(is_array($after) ? $after : $after->toArray(), JSON_THROW_ON_ERROR);
+        $this->trails->push($trail);
         return $this;
     }
 

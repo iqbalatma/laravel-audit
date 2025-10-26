@@ -48,6 +48,29 @@ AuditService::init("CREATE_PRODUCT", "Create product via method abc in class xyz
     ->setAdditional(["role" => "ADMIN"]) #optional
     ->setActor(Auth::user()) #optional
     ->execute();
+
+
+#example for data relational attach/detach
+$role->fill($requestedData)->save();
+
+$audit = \Iqbalatma\LaravelAudit\AuditService::init(AuditAction::UPDATE_ROLE, __METHOD__, $role)
+    ->addSingleTrail($role, $roleBefore, $role->toArray());
+
+
+$permissionBefore = $role->permissions
+    ->map(fn($p) => $p->only(['id', 'name']))
+    ->toArray();
+
+$role->permissions()->sync($requestedData['permissions'] ?? []);
+$role->load('permissions');
+
+$permissionAfter = $role->permissions
+    ->map(fn($p) => $p->only(['id', 'name']))
+    ->toArray();
+
+$audit->addRelationalTrail(Table::PERMISSIONS->value, $permissionBefore, $permissionAfter);
+
+$audit->execute();
 ?>
 
 ```

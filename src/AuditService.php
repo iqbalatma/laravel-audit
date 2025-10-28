@@ -130,6 +130,13 @@ class AuditService
                 return $this->filterRequest(collect($item));  // recursive
             }
 
+            if (is_string($item)) {
+                $maxLength = 255;
+                return strlen($item) > $maxLength
+                    ? substr($item, 0, $maxLength) . '...'
+                    : $item;
+            }
+
             // if item is not object UploadedFile, return item
             if (!($item instanceof \Illuminate\Http\UploadedFile)) {
                 return $item;
